@@ -45,9 +45,16 @@ class UserPreferences {
   });
 
   /// Default preferences used at first launch or for anonymous users.
-  factory UserPreferences.defaults() => const UserPreferences(
-        sortPriorityOrder: [SortKey.personalized, SortKey.rating, SortKey.distance],
-      );
+  factory UserPreferences.defaults() {
+    // 기본 3개 선택, 나머지는 이후에 옵션으로 제공 가능
+    return const UserPreferences(
+      sortPriorityOrder: [
+        SortKey.personalized,
+        SortKey.rating,
+        SortKey.distance,
+      ],
+    );
+  }
 
   UserPreferences copyWith({
     List<SortKey>? sortPriorityOrder,
