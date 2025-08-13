@@ -7,12 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 
-/// UserProvider manages:
-/// - Auth state subscription (login/logout)
-/// - Live user document subscription at `users/{uid}`
-/// - Creating an initial user doc on first login
-/// - Profile read/write helpers + onboarding completion
-/// - Points update, sign-out, delete account
 class UserProvider with ChangeNotifier {
   final FirebaseFirestore _db;
   final AuthService _auth;
@@ -47,9 +41,6 @@ class UserProvider with ChangeNotifier {
   // ------------------------
   // Lifecycle
   // ------------------------
-
-  /// Call this once after Firebase.initializeApp(), e.g.:
-  /// ChangeNotifierProvider(create: (_) => UserProvider()..initialize())
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
@@ -67,7 +58,6 @@ class UserProvider with ChangeNotifier {
   // ------------------------
   // Internal bindings
   // ------------------------
-
   void _bindAuth() {
     _authSub?.cancel();
     _authSub = _auth.authStateChanges.listen((user) async {
@@ -85,7 +75,7 @@ class UserProvider with ChangeNotifier {
 
     final docRef = _db.collection('users').doc(user.uid);
 
-    // Ensure an initial user document exists (idempotent).
+    // 초기 유저 문서 생성 (없을 시)
     try {
       final snap = await docRef.get();
       if (!snap.exists) {
@@ -103,24 +93,20 @@ class UserProvider with ChangeNotifier {
         );
         await docRef.set(seed.toMap(), SetOptions(merge: true));
       }
-    } catch (e) {
+    } catch (_) {
       _setState(error: 'init-user-doc-failed');
     }
 
-    // Subscribe to live changes on the user document.
+    // 실시간 구독
     _userDocSub = docRef.snapshots().listen((doc) {
       final data = doc.data();
       if (data == null) {
-        _setState(profile: UserProfile.empty(), loading: false, error: null);
+        _setState(profile: UserProfile.empty(), loading: false);
         return;
       }
-      // Make sure uid is present before parsing
-      final map = Map<String, dynamic>.from(data);
-      map['uid'] ??= user.uid;
-
-      final prof = UserProfile.fromMap(map);
-      _setState(profile: prof, loading: false, error: null);
-    }, onError: (e, st) {
+      final map = Map<String, dynamic>.from(data)..['uid'] ??= user.uid;
+      _setState(profile: UserProfile.fromMap(map), loading: false);
+    }, onError: (_) {
       _setState(error: 'user-doc-listen-failed', loading: false);
     });
   }
@@ -136,8 +122,6 @@ class UserProvider with ChangeNotifier {
   // ------------------------
   // Public actions
   // ------------------------
-
-  /// Force-refresh from Firestore (not usually needed because of live subscription).
   Future<void> refresh() async {
     final id = uid;
     if (id == null) return;
@@ -150,7 +134,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  /// Save full profile (merge by default). The live listener will update local state.
   Future<void> saveProfile(UserProfile newProfile, {bool merge = true}) async {
     final id = uid;
     if (id == null) throw const AuthException('no-user', 'No signed-in user.');
@@ -160,32 +143,43 @@ class UserProvider with ChangeNotifier {
           .collection('users')
           .doc(id)
           .set(updated.toMap(), SetOptions(merge: merge));
-    } catch (e) {
+    } catch (_) {
       _setState(error: 'save-failed');
       rethrow;
     }
   }
 
-  /// Update only preferences.
   Future<void> updatePreferences(UserPreferences prefs) async {
     if (_profile == null) return;
-    final p = _profile!.copyWith(preferences: prefs).touch();
-    await saveProfile(p);
+    try {
+      final p = _profile!.copyWith(preferences: prefs).touch();
+      await saveProfile(p);
+    } catch (_) {
+      _setState(error: 'update-prefs-failed');
+      rethrow;
+    }
   }
 
-  /// Mark onboarding (personal settings) as completed.
+  /// 온보딩 완료 처리 + Firestore 저장
   Future<void> markOnboardingComplete({
     UserPreferences? prefs,
     DisabilityType? disabilityType,
   }) async {
     if (_profile == null) return;
-    var p = _profile!.copyWith(isProfileComplete: true);
-    if (prefs != null) p = p.copyWith(preferences: prefs);
-    if (disabilityType != null) p = p.copyWith(disabilityType: disabilityType);
-    await saveProfile(p);
+    try {
+      var p = _profile!.copyWith(
+        isProfileComplete: true,
+        preferences: prefs ?? _profile!.preferences,
+        disabilityType: disabilityType ?? _profile!.disabilityType,
+      ).touch();
+
+      await saveProfile(p);
+    } catch (_) {
+      _setState(error: 'onboarding-save-failed');
+      rethrow;
+    }
   }
 
-  /// Atomically add/subtract points.
   Future<void> incrementPoints(int delta) async {
     final id = uid;
     if (id == null) throw const AuthException('no-user', 'No signed-in user.');
@@ -197,26 +191,23 @@ class UserProvider with ChangeNotifier {
         final current = (data['points'] is int)
             ? data['points'] as int
             : int.tryParse('${data['points']}') ?? 0;
-        final next = current + delta;
         tx.set(
           ref,
           {
-            'points': next,
+            'points': current + delta,
             'updatedAt': DateTime.now().toUtc().toIso8601String(),
           },
           SetOptions(merge: true),
         );
       });
-    } catch (e) {
+    } catch (_) {
       _setState(error: 'points-update-failed');
       rethrow;
     }
   }
 
-  /// Sign out (Auth listener will clear local state).
   Future<void> signOut() => _auth.signOut();
 
-  /// Delete account and try to remove Firestore user doc.
   Future<void> deleteAccount() async {
     final u = _auth.currentUser;
     if (u == null) throw const AuthException('no-user', 'No signed-in user.');
@@ -226,8 +217,7 @@ class UserProvider with ChangeNotifier {
     try {
       await _db.collection('users').doc(id).delete();
     } catch (_) {
-      // It's fine if the doc is already gone or deletion fails.
+      // 이미 삭제되었거나 실패해도 무방
     }
   }
 }
-
