@@ -1,4 +1,3 @@
-// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -17,33 +16,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _saving = false;
   bool _initedFromProfile = false;
 
-  // Profile fields
   DisabilityType _disabilityType = DisabilityType.none;
-  late List<SortKey> _priority; // length 3
+  late List<SortKey> _priority; // 항상 length = 3
   bool _ramp = false, _restroom = false, _elevator = false, _braille = false, _guideDog = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 초기 1회: Provider의 profile로 폼 값 채우기
     if (_initedFromProfile) return;
+
     final p = context.watch<UserProvider>().profile;
-    if (p == null) return;
+    if (p != null) {
+      _nameCtrl.text = p.displayName ?? '';
+      _disabilityType = p.disabilityType;
 
-    _nameCtrl.text = p.displayName ?? '';
-    _disabilityType = p.disabilityType;
+      final order = p.preferences.sortPriorityOrder;
+      _priority = order.length == 3
+          ? List<SortKey>.from(order)
+          : List<SortKey>.from(UserPreferences.defaults().sortPriorityOrder);
 
-    final order = p.preferences.sortPriorityOrder;
-    _priority = order.isNotEmpty
-        ? List<SortKey>.from(order)
-        : List<SortKey>.from(UserPreferences.defaults().sortPriorityOrder);
-
-    _ramp     = p.preferences.filterWheelchairRamp;
-    _restroom = p.preferences.filterAccessibleRestroom;
-    _elevator = p.preferences.filterElevator;
-    _braille  = p.preferences.filterBrailleMenu;
-    _guideDog = p.preferences.filterGuideDogFriendly;
-
+      _ramp     = p.preferences.filterWheelchairRamp;
+      _restroom = p.preferences.filterAccessibleRestroom;
+      _elevator = p.preferences.filterElevator;
+      _braille  = p.preferences.filterBrailleMenu;
+      _guideDog = p.preferences.filterGuideDogFriendly;
+    } else {
+      // profile이 null일 경우 기본값
+      _priority = List<SortKey>.from(UserPreferences.defaults().sortPriorityOrder);
+    }
     _initedFromProfile = true;
   }
 
@@ -53,9 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  // -----------------------------
-  // Helpers
-  // -----------------------------
   String _labelForDisability(DisabilityType t) {
     switch (t) {
       case DisabilityType.none:       return '해당 없음/기타';
@@ -134,14 +131,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         preferences: prefs,
       );
 
-      await prov.saveProfile(updated); // Firestore merge + live 업데이트
+      await prov.saveProfile(updated);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장되었습니다.')));
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장되었습니다.')),
+      );
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('저장 중 오류가 발생했습니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장 중 오류가 발생했습니다.')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -171,7 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('계정 삭제'),
-        content: const Text('계정을 영구 삭제합니다. 이 작업은 되돌릴 수 없습니다. 계속할까요?'),
+        content: const Text('계정을 영구 삭제합니다. 되돌릴 수 없습니다. 계속할까요?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
           FilledButton(
@@ -189,8 +189,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('계정 삭제에 실패했습니다. 최근 로그인 필요할 수 있어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('계정 삭제 실패. 최근 로그인 필요할 수 있습니다.')),
+      );
     }
   }
 
@@ -217,7 +218,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // --- Account section ---
           Row(
             children: [
               _avatar(p),
@@ -228,8 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              if (p.points > 0)
-                Chip(label: Text('Points ${p.points}')),
+              if (p.points > 0) Chip(label: Text('Points ${p.points}')),
             ],
           ),
           const SizedBox(height: 16),
@@ -241,7 +240,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               border: OutlineInputBorder(),
             ),
           ),
-
           const SizedBox(height: 24),
           const Text('장애 유형', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
@@ -253,19 +251,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: Text(_labelForDisability(t)),
             ),
           ),
-
           const SizedBox(height: 24),
           const Text('정렬 우선순위', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
           _priorityDropdown(0, '1순위'),
           const SizedBox(height: 12),
           _priorityDropdown(1, '2순위'),
           const SizedBox(height: 12),
           _priorityDropdown(2, '3순위'),
-
           const SizedBox(height: 24),
           const Text('접근성 필터', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
           SwitchListTile(
             value: _ramp,
             onChanged: (v) => setState(() => _ramp = v),
@@ -291,7 +285,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (v) => setState(() => _guideDog = v),
             title: const Text('안내견 동반 가능'),
           ),
-
           const SizedBox(height: 24),
           FilledButton.icon(
             icon: _saving
@@ -300,18 +293,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: Text(_saving ? '저장 중...' : '저장'),
             onPressed: _saving ? null : _save,
           ),
-
           const SizedBox(height: 16),
           const Divider(height: 32),
-
-          // --- Danger zone / Account ---
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('로그아웃'),
             subtitle: const Text('현재 계정에서 로그아웃합니다.'),
             trailing: OutlinedButton(onPressed: _signOut, child: const Text('로그아웃')),
           ),
-          const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('계정 삭제'),
@@ -327,4 +316,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-
