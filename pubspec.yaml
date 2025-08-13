@@ -87,3 +87,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+dependencies:
+  firebase_core: ^latest
+  firebase_auth: ^latest
+  cloud_firestore: ^latest
+  google_sign_in: ^latest
