@@ -1,3 +1,13 @@
+// import 'package:provider/provider.dart';
+// import 'providers/user_provider.dart';
+
+return MultiProvider(
+  providers: [
+    ChangeNotifierProvider(create: (_) => UserProvider()..initialize()),
+  ],
+  child: const AppRoot(),
+);
+
 import 'package:flutter/material.dart';
 // Firebase 준비되면 아래 주석을 해제
 // import 'package:firebase_core/firebase_core.dart';
