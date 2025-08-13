@@ -1,122 +1,189 @@
 import 'package:flutter/material.dart';
+// Firebase 준비되면 아래 주석을 해제
+// import 'package:firebase_core/firebase_core.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'firebase_options.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1) 파이어베이스 준비되면 주석 해제
+  // await Firebase.initializeApp(
+  //   options: DefaultFirebaseOptions.currentPlatform,
+  // );
+
+  runApp(const AppRoot());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Hereable',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+
+      // 2) 전역 라우트: 이후 파일 분리 시 이름만 유지하면 됨
+      routes: {
+        '/login': (_) => const LoginScreen(),
+        '/home': (_) => const HomeScreen(),
+        '/settings': (_) => const SettingsScreen(),
+        '/onboarding': (_) => const PersonalSettingsScreen(),
+      },
+
+      // 3) 시작 화면: 스플래시 → 분기
+      home: const SplashGate(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+/// 앱 시작 시 잠깐 보여주는 화면 + 분기 로직
+class SplashGate extends StatefulWidget {
+  const SplashGate({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<SplashGate> createState() => _SplashGateState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _SplashGateState extends State<SplashGate> {
+  @override
+  void initState() {
+    super.initState();
+    _decideNext();
+  }
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  Future<void> _decideNext() async {
+    // TODO: Firebase Auth 붙이면 아래 isLoggedIn을 실제 인증 상태로 교체
+    // final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+    const isLoggedIn = false; // 임시: 아직 로그인 안 된 상태라고 가정
+
+    // TODO: Firestore에서 사용자 프로필(개인 설정 완료 여부) 불러오면 교체
+    const isProfileComplete = false; // 임시: 온보딩 필요하다고 가정
+
+    await Future.delayed(const Duration(milliseconds: 600)); // 로고 살짝 보여주기
+
+    if (!mounted) return;
+
+    if (!isLoggedIn) {
+      Navigator.of(context).pushReplacementNamed('/login');
+    } else if (!isProfileComplete) {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/home');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+/// 로그인 화면 (임시 버전)
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('로그인')),
+      body: Center(
+        child: ElevatedButton(
+          child: const Text('로그인 성공 가정 → 홈으로'),
+          onPressed: () {
+            // TODO: FirebaseAuth 로그인 성공 시 로직으로 교체
+            Navigator.pushReplacementNamed(context, '/onboarding');
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// 첫 화면(홈) – 이후 장소 리스트/지도 등 붙일 곳
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Hereable 홈'),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
+            icon: const Icon(Icons.settings),
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: const Center(child: Text('홈 컨텐츠 영역')),
+    );
+  }
+}
+
+/// 마이페이지/설정 화면
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('마이페이지 & 설정')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const ListTile(title: Text('닉네임'), subtitle: Text('예: 준영')),
+          const ListTile(title: Text('이메일'), subtitle: Text('you@example.com')),
+          const Divider(),
+          SwitchListTile(
+            value: true,
+            onChanged: (v) {},
+            title: const Text('다크 모드(예시)'),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: FirebaseAuth.signOut()로 교체
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+            },
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 개인 설정(온보딩) – 장애유형/우선순위 등 최초 1회 입력
+class PersonalSettingsScreen extends StatelessWidget {
+  const PersonalSettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: 라디오/체크/드롭다운 등으로 실제 옵션 구성
+    return Scaffold(
+      appBar: AppBar(title: const Text('개인 설정(온보딩)')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+          children: [
+            const Text('장애유형, 우선순위(맞춤/별점/거리) 등을 선택하세요.'),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                // TODO: Firestore에 설정 저장 후 홈으로
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+              child: const Text('완료하고 시작하기'),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
+
