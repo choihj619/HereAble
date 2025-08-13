@@ -1,28 +1,33 @@
-// import 'package:provider/provider.dart';
-// import 'providers/user_provider.dart';
-
-return MultiProvider(
-  providers: [
-    ChangeNotifierProvider(create: (_) => UserProvider()..initialize()),
-  ],
-  child: const AppRoot(),
-);
-
+// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 // Firebase 준비되면 아래 주석을 해제
 // import 'package:firebase_core/firebase_core.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 // import 'firebase_options.dart';
 
+import 'providers/user_provider.dart';
+// 스플래시를 별도 파일로 만들었다면 아래처럼 import:
+// import 'screens/splash_screen.dart';  // (지금 예시는 내부 클래스로 작성)
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1) 파이어베이스 준비되면 주석 해제
+  // 🔧 나중에 Firebase 붙일 때 주석 해제
   // await Firebase.initializeApp(
   //   options: DefaultFirebaseOptions.currentPlatform,
   // );
 
-  runApp(const AppRoot());
+  runApp(
+    MultiProvider(
+      providers: [
+        // UserProvider가 Auth 상태/유저 문서를 구독하고 분기 판단에 쓰임
+        ChangeNotifierProvider(create: (_) => UserProvider()..initialize()),
+      ],
+      child: const AppRoot(),
+    ),
+  );
 }
 
 class AppRoot extends StatelessWidget {
@@ -37,15 +42,16 @@ class AppRoot extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // 2) 전역 라우트: 이후 파일 분리 시 이름만 유지하면 됨
+      // 📍 라우트 테이블 (파일 분리해도 이름만 유지하면 됨)
       routes: {
+        '/splash': (_) => const SplashGate(),
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreen(),
         '/settings': (_) => const SettingsScreen(),
         '/onboarding': (_) => const PersonalSettingsScreen(),
       },
 
-      // 3) 시작 화면: 스플래시 → 분기
+      // 시작 화면: 스플래시 → (로그인/온보딩/홈) 자동 분기
       home: const SplashGate(),
     );
   }
@@ -60,37 +66,61 @@ class SplashGate extends StatefulWidget {
 }
 
 class _SplashGateState extends State<SplashGate> {
+  bool _navigated = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _decideNext();
   }
 
   Future<void> _decideNext() async {
-    // TODO: Firebase Auth 붙이면 아래 isLoggedIn을 실제 인증 상태로 교체
-    // final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-    const isLoggedIn = false; // 임시: 아직 로그인 안 된 상태라고 가정
+    if (_navigated) return;
 
-    // TODO: Firestore에서 사용자 프로필(개인 설정 완료 여부) 불러오면 교체
-    const isProfileComplete = false; // 임시: 온보딩 필요하다고 가정
+    // 🔎 Provider에서 로그인/프로필 상태 읽기
+    final userProv = context.read<UserProvider>();
 
-    await Future.delayed(const Duration(milliseconds: 600)); // 로고 살짝 보여주기
+    // 로고/스플래시를 잠깐 보여주고 분기
+    await Future.delayed(const Duration(milliseconds: 600));
 
     if (!mounted) return;
 
-    if (!isLoggedIn) {
-      Navigator.of(context).pushReplacementNamed('/login');
-    } else if (!isProfileComplete) {
-      Navigator.of(context).pushReplacementNamed('/onboarding');
-    } else {
-      Navigator.of(context).pushReplacementNamed('/home');
+    // TODO: Firebase Auth 붙인 뒤엔 userProv.isSignedIn이 실제 인증 상태를 의미함
+    if (!userProv.isSignedIn) {
+      _go('/login');
+      return;
     }
+
+    // 로그인은 됐는데 온보딩(개인 설정) 미완료라면
+    if (!userProv.isProfileComplete) {
+      _go('/onboarding');
+      return;
+    }
+
+    // 모두 완료 → 홈
+    _go('/home');
+  }
+
+  void _go(String route) {
+    if (_navigated) return;
+    _navigated = true;
+    Navigator.of(context).pushReplacementNamed(route);
   }
 
   @override
   Widget build(BuildContext context) {
+    // 심플 스플래시 UI
     return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FlutterLogo(size: 96),
+            SizedBox(height: 20),
+            CircularProgressIndicator(),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -101,15 +131,16 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // TODO: 실제 AuthService().signInWithEmail / signInWithGoogle 등으로 교체
     return Scaffold(
       appBar: AppBar(title: const Text('로그인')),
       body: Center(
         child: ElevatedButton(
-          child: const Text('로그인 성공 가정 → 홈으로'),
           onPressed: () {
-            // TODO: FirebaseAuth 로그인 성공 시 로직으로 교체
+            // 임시: 로그인 성공 가정 → 온보딩으로
             Navigator.pushReplacementNamed(context, '/onboarding');
           },
+          child: const Text('로그인 성공 가정 → 온보딩으로'),
         ),
       ),
     );
@@ -119,8 +150,10 @@ class LoginScreen extends StatelessWidget {
 /// 첫 화면(홈) – 이후 장소 리스트/지도 등 붙일 곳
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
+    // 예시: 마이페이지로 이동
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hereable 홈'),
@@ -139,8 +172,10 @@ class HomeScreen extends StatelessWidget {
 /// 마이페이지/설정 화면
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
+    // TODO: UserProvider.profile과 연동해서 닉네임/이메일/설정 바인딩
     return Scaffold(
       appBar: AppBar(title: const Text('마이페이지 & 설정')),
       body: ListView(
@@ -157,7 +192,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              // TODO: FirebaseAuth.signOut()로 교체
+              // TODO: AuthService().signOut() 호출로 교체
               Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
             },
             child: const Text('로그아웃'),
@@ -174,7 +209,7 @@ class PersonalSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: 라디오/체크/드롭다운 등으로 실제 옵션 구성
+    // TODO: 실제 옵션 위젯(라디오/체크/드롭다운) + UserProvider.markOnboardingComplete 연결
     return Scaffold(
       appBar: AppBar(title: const Text('개인 설정(온보딩)')),
       body: Padding(
@@ -185,7 +220,8 @@ class PersonalSettingsScreen extends StatelessWidget {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
-                // TODO: Firestore에 설정 저장 후 홈으로
+                // TODO: Firestore 저장 후 완료 처리
+                // context.read<UserProvider>().markOnboardingComplete(...);
                 Navigator.pushReplacementNamed(context, '/home');
               },
               child: const Text('완료하고 시작하기'),
