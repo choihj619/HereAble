@@ -6,8 +6,9 @@ import 'package:provider/provider.dart';
 import 'providers/user_provider.dart';
 
 // Screens (분리 파일)
-import 'screens/personal_settings_screen.dart'; // 온보딩(개인 설정)
-import 'screens/login_screen.dart';             // 로그인 화면
+import 'screens/login_screen.dart';               // 로그인 화면
+import 'screens/personal_settings_screen.dart';   // 온보딩(개인 설정)
+import 'screens/settings_screen.dart';            // 마이페이지·환경설정 (분리 파일로 사용)
 
 // Firebase 준비되면 아래 주석 해제
 // import 'package:firebase_core/firebase_core.dart';
@@ -44,13 +45,13 @@ class AppRoot extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // 📍 라우트 테이블 (파일 분리해도 이름만 유지하면 됨)
+      // 📍 라우트 테이블
       routes: {
         '/splash':     (_) => const SplashGate(),
-        '/login':      (_) => const LoginScreen(),             // ← 분리 파일 사용
-        '/onboarding': (_) => const PersonalSettingsScreen(),  // ← 분리 파일 사용
-        '/home':       (_) => const HomeScreen(),              // (현재 파일 내 임시 화면)
-        '/settings':   (_) => const SettingsScreen(),          // (현재 파일 내 임시 화면)
+        '/login':      (_) => const LoginScreen(),
+        '/onboarding': (_) => const PersonalSettingsScreen(),
+        '/home':       (_) => const HomeScreen(),     // (지금은 이 파일 안 임시 화면)
+        '/settings':   (_) => const SettingsScreen(), // (분리 파일)
       },
 
       // 시작 화면: 스플래시 → (로그인/온보딩/홈) 자동 분기
@@ -124,7 +125,7 @@ class _SplashGateState extends State<SplashGate> {
   }
 }
 
-/// 첫 화면(홈) – 이후 장소 리스트/지도 등 붙일 곳
+/// 첫 화면(홈) – 이후 장소 리스트/지도 등 붙일 곳 (임시)
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -142,40 +143,6 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: const Center(child: Text('홈 컨텐츠 영역')),
-    );
-  }
-}
-
-/// 마이페이지/설정 화면 (임시)
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: UserProvider.profile과 연동해서 닉네임/이메일/설정 바인딩
-    return Scaffold(
-      appBar: AppBar(title: const Text('마이페이지 & 설정')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const ListTile(title: Text('닉네임'), subtitle: Text('예: 준영')),
-          const ListTile(title: Text('이메일'), subtitle: Text('you@example.com')),
-          const Divider(),
-          SwitchListTile(
-            value: true,
-            onChanged: (v) {},
-            title: const Text('다크 모드(예시)'),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: AuthService().signOut() 호출로 교체
-              Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
-            },
-            child: const Text('로그아웃'),
-          ),
-        ],
-      ),
     );
   }
 }
