@@ -2,19 +2,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// Firebase 준비되면 아래 주석을 해제
-// import 'package:firebase_core/firebase_core.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'firebase_options.dart';
-
+// Provider
 import 'providers/user_provider.dart';
-// 스플래시를 별도 파일로 만들었다면 아래처럼 import:
-// import 'screens/splash_screen.dart';  // (지금 예시는 내부 클래스로 작성)
+
+// Screens (분리 파일)
+import 'screens/personal_settings_screen.dart'; // 온보딩(개인 설정)
+import 'screens/login_screen.dart';             // 로그인 화면
+
+// Firebase 준비되면 아래 주석 해제
+// import 'package:firebase_core/firebase_core.dart';
+// import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔧 나중에 Firebase 붙일 때 주석 해제
+  // ✅ 나중에 Firebase 붙일 때 주석 해제
   // await Firebase.initializeApp(
   //   options: DefaultFirebaseOptions.currentPlatform,
   // );
@@ -44,11 +46,11 @@ class AppRoot extends StatelessWidget {
 
       // 📍 라우트 테이블 (파일 분리해도 이름만 유지하면 됨)
       routes: {
-        '/splash': (_) => const SplashGate(),
-        '/login': (_) => const LoginScreen(),
-        '/home': (_) => const HomeScreen(),
-        '/settings': (_) => const SettingsScreen(),
-        '/onboarding': (_) => const PersonalSettingsScreen(),
+        '/splash':     (_) => const SplashGate(),
+        '/login':      (_) => const LoginScreen(),             // ← 분리 파일 사용
+        '/onboarding': (_) => const PersonalSettingsScreen(),  // ← 분리 파일 사용
+        '/home':       (_) => const HomeScreen(),              // (현재 파일 내 임시 화면)
+        '/settings':   (_) => const SettingsScreen(),          // (현재 파일 내 임시 화면)
       },
 
       // 시작 화면: 스플래시 → (로그인/온보딩/홈) 자동 분기
@@ -85,19 +87,16 @@ class _SplashGateState extends State<SplashGate> {
 
     if (!mounted) return;
 
-    // TODO: Firebase Auth 붙인 뒤엔 userProv.isSignedIn이 실제 인증 상태를 의미함
     if (!userProv.isSignedIn) {
       _go('/login');
       return;
     }
 
-    // 로그인은 됐는데 온보딩(개인 설정) 미완료라면
     if (!userProv.isProfileComplete) {
       _go('/onboarding');
       return;
     }
 
-    // 모두 완료 → 홈
     _go('/home');
   }
 
@@ -119,28 +118,6 @@ class _SplashGateState extends State<SplashGate> {
             SizedBox(height: 20),
             CircularProgressIndicator(),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 로그인 화면 (임시 버전)
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: 실제 AuthService().signInWithEmail / signInWithGoogle 등으로 교체
-    return Scaffold(
-      appBar: AppBar(title: const Text('로그인')),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            // 임시: 로그인 성공 가정 → 온보딩으로
-            Navigator.pushReplacementNamed(context, '/onboarding');
-          },
-          child: const Text('로그인 성공 가정 → 온보딩으로'),
         ),
       ),
     );
@@ -169,7 +146,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-/// 마이페이지/설정 화면
+/// 마이페이지/설정 화면 (임시)
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -202,34 +179,3 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 }
-
-/// 개인 설정(온보딩) – 장애유형/우선순위 등 최초 1회 입력
-class PersonalSettingsScreen extends StatelessWidget {
-  const PersonalSettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: 실제 옵션 위젯(라디오/체크/드롭다운) + UserProvider.markOnboardingComplete 연결
-    return Scaffold(
-      appBar: AppBar(title: const Text('개인 설정(온보딩)')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text('장애유형, 우선순위(맞춤/별점/거리) 등을 선택하세요.'),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Firestore 저장 후 완료 처리
-                // context.read<UserProvider>().markOnboardingComplete(...);
-                Navigator.pushReplacementNamed(context, '/home');
-              },
-              child: const Text('완료하고 시작하기'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
